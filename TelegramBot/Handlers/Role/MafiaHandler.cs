@@ -49,7 +49,7 @@ public class MafiaHandler : IRoleHandler
             "Выберите жертву:",
             "Выберите жертву:",
         }.Random()!;
-    
+
     private List<RoomPlayer> TargetPlayers(GameRoom room) => room.Players.Where(player => player.Role == Role).ToList();
 
     public async Task HandleGameplayAsync(GameRoom room, CancellationToken token)
@@ -132,7 +132,7 @@ public class MafiaHandler : IRoleHandler
 
         var target = room.Players.Find(x => x.User.Id == votes.First().Key)!;
         room.KilledThisNight.Add(target);
-        
+
         Program.Bot.SendTextMessageAsync(room.Chat, $"\ud83e\udd35\ud83c\udffb Мафия выбрала жертву...",
             cancellationToken: room.Cts.Token);
     }

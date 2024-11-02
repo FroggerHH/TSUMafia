@@ -47,6 +47,6 @@ public class StartGameHandler : ICommandHandler
         Program.GameRooms.Add(gameRoom);
         gameRoom.JoinMessage = joinMessage;
 
-        gameRoom.StartWaitingForPlayersToJoin(token);
+        gameRoom.StartWaitingForPlayersToJoin();
     }
 }

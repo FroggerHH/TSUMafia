@@ -6,19 +6,20 @@ namespace TelegramBot.Handlers.GameRoomStates;
 
 public class WakeupGoodguys(GameRoom room)
 {
-    public async void Process()
+    private readonly List<Task> _tasks = [];
+    public bool IsFinished => _tasks.All(x => x.IsCompleted);
+
+    public void Process()
     {
         Logger.Call(nameof(WakeupGoodguys), nameof(Process));
         var playersByRole = room.Players.WhereNotEvil().SortByRole()
             .GroupBy(roomPlayer => roomPlayer.Role)
             .ToDictionary(group => group.Key, group => group.ToList());
 
-        foreach (var pair in playersByRole) await HandleRole(pair);
-
-        room.SetState(GameRoomState.AnnounceNightResults);
+        foreach (var pair in playersByRole) HandleRole(pair);
     }
 
-    private async Task HandleRole(KeyValuePair<TelegramBot.Role, List<RoomPlayer>> pair)
+    private async void HandleRole(KeyValuePair<TelegramBot.Role, List<RoomPlayer>> pair)
     {
         var role = pair.Key;
         var players = pair.Value;
@@ -52,6 +53,6 @@ public class WakeupGoodguys(GameRoom room)
 
         var cts = new CancellationTokenSource();
         cts.CancelAfter(handler.TimeLimit_sec * 1000);
-        await handler.HandleGameplayAsync(room, cts.Token);
+        _tasks.Add(handler.HandleGameplayAsync(room, cts.Token));
     }
 }

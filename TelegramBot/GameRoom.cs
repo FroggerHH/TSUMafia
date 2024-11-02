@@ -35,17 +35,10 @@ public class GameRoom(Chat chat)
 
     public Dictionary<long, byte>? MafiaTargets = null;
     public readonly List<RoomPlayer> KilledThisNight = [];
+    public RoomPlayer? DoctorSave;
 
     public async void StartGame()
     {
-        if (AwaitingPlayers.Count < MinPlayers)
-        {
-            Logger.Info($"Not enough players in chat {Chat.Id}{Chat.Title} to start game");
-            await Program.Bot.SendTextMessageAsync(Chat, $"Недостаточно игроков. Минимум {MinPlayers}",
-                cancellationToken: Cts.Token);
-            return;
-        }
-
         Logger.Info($"Game starts in chat {Chat.Id}{Chat.Title}");
 
         await GreatAboutGameStart();
@@ -55,6 +48,12 @@ public class GameRoom(Chat chat)
         await Task.Delay(2000);
 
         SetState(GameRoomState.NightStarts);
+    }
+
+    private async void CloseRoom()
+    {
+        await Cts.CancelAsync();
+        Cts.Dispose();
     }
 
     private Task<Message> GreatAboutGameStart() => Program.Bot.SendTextMessageAsync(Chat, "Игра начинается",
@@ -98,8 +97,9 @@ public class GameRoom(Chat chat)
     private List<Role> GetRolesPool(int playersCount) => playersCount switch
     {
         0 or 1 => [],
-        2 => [Mafia, Normal],
-        3 => [Mafia, Normal, Normal],
+        // 2 => [Mafia, Normal],
+        2 => [Mafia, Doctor],
+        3 => [Mafia, Normal, Doctor],
         4 => [Mafia, Normal, Normal, Normal],
         5 => [Mafia, Mafia, Normal, Normal, Normal],
         6 => [Mafia, Mafia, Normal, Normal, Normal, Normal],
@@ -114,7 +114,9 @@ public class GameRoom(Chat chat)
         switch (State)
         {
             case GameRoomState.WaitingForPlayersToJoin: throw new ArgumentException();
-            case GameRoomState.DayDiscussion: DayDiscussion.Process(this); break;
+            case GameRoomState.DayDiscussion:
+                DayDiscussion.Process(this);
+                break;
             case GameRoomState.DayVoting: throw new NotImplementedException();
             case GameRoomState.Day_VotingResults: throw new NotImplementedException();
 
@@ -124,12 +126,18 @@ public class GameRoom(Chat chat)
 
             case GameRoomState.NightStarts:
                 NightStarts.SendMessage(this);
-                break;
-            case GameRoomState.WakeupBadguys:
-                new WakeupBadguys(this).Process();
-                break;
-            case GameRoomState.WakeupGoodguys:
-                new WakeupGoodguys(this).Process();
+                var badguys = new WakeupBadguys(this);
+                var goodguys = new WakeupGoodguys(this);
+                badguys.Process();
+                goodguys.Process();
+
+                Task.Run(async () =>
+                {
+                    while (!badguys.IsFinished || !goodguys.IsFinished) await Task.Delay(500);
+
+                    SetState(GameRoomState.AnnounceNightResults);
+                });
+
                 break;
 
             default: throw new ArgumentOutOfRangeException(nameof(State), State, "Incorrect state");
@@ -137,7 +145,7 @@ public class GameRoom(Chat chat)
     }
 
 
-    public async void StartWaitingForPlayersToJoin(CancellationToken botGlobalToken)
+    public async void StartWaitingForPlayersToJoin()
     {
         CancellationToken token = Cts.Token;
         try
@@ -155,9 +163,11 @@ public class GameRoom(Chat chat)
 
             if (AwaitingPlayers.Count < MinPlayers)
             {
-                await Program.Bot.SendTextMessageAsync(new ChatId(Chat.Id), "Недостаточно игроков, минимум 4",
+                await Program.Bot.SendTextMessageAsync(new ChatId(Chat.Id),
+                    $"Недостаточно игроков, минимум {MinPlayers}",
                     cancellationToken: token);
                 Program.GameRooms.Remove(this);
+                CloseRoom();
                 return;
             }
 
@@ -205,6 +215,4 @@ public enum GameRoomState
     Day_VotingResults,
 
     NightStarts,
-    WakeupBadguys,
-    WakeupGoodguys,
 }

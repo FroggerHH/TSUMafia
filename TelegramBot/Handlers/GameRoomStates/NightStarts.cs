@@ -14,13 +14,10 @@ public static class NightStarts
         Logger.Call(nameof(NightStarts), nameof(SendMessage));
         await NightIsComingMsg(room);
         await SendWhoIsAliveMsg(room);
-
-        room.SetState(GameRoomState.WakeupBadguys);
     }
 
     private static Task<Message> NightIsComingMsg(GameRoom room) => Program.Bot.SendVideoAsync(room.Chat,
-        new InputFileUrl("https://i.imgur.com/UQveEBG.gif"),
-        caption:
+        new InputFileUrl("https://i.imgur.com/UQveEBG.gif"), caption:
         "\ud83c\udf03 Наступает ночь\nНа улицы города выходят лишь самые отважные и бесстрашные. Утром попробуем сосчитать их головы...",
         replyMarkup: new InlineKeyboardMarkup(new List<InlineKeyboardButton>()
         {

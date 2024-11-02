@@ -12,12 +12,18 @@ static class Program
     public static List<IRoleHandler> RoleHandlers = null!;
     public static readonly List<GameRoom> GameRooms = [];
 
-    private static void Main()
+    private static void Main(string[] args)
     {
         Logger.Debug($"Starting application");
         FindHandlers();
         Logger.Debug($"Starting Telegram Bot");
-        StartBot();
+        if (args.Length < 1)
+        {
+            Logger.Error("No bot token specified in application arguments");
+            throw new Exception("No bot token specified in application arguments");
+        }
+
+        StartBot(args[0]);
         Console.ReadKey();
     }
 
@@ -38,9 +44,9 @@ static class Program
             .ToList();
     }
 
-    private static void StartBot()
+    private static void StartBot(string botToken)
     {
-        Bot = new TelegramBotClient("8083563461:AAEAGza7OUjk1lW4SWcODpgVOxzp1gazdSA");
+        Bot = new TelegramBotClient(botToken);
         Bot.StartReceiving<MessageHandler>();
 
         Bot.SetMyCommandsAsync(
